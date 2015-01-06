@@ -1,7 +1,7 @@
 Index
 ============
 
-Index is a program that allows you to determine diffraction spot indices from a calibrated TEM diffraction pattern of a known crystal structure that you can import. Index is very helpful to determine the stereographic projection quite rapidly. 
+Index is a python script that allows you to determine diffraction spot indices from a calibrated TEM diffraction pattern of a known crystal structure. Index is very helpful to determine the stereographic projection quite rapidly. 
 
 ## Requirements
 
@@ -34,6 +34,7 @@ where x, y and z are the atom position in the unit cell.
 * Click on the diffracted spot.  The output window gives the interplanar distance measured and the inclination angle with respect to the tilt axis of the TEM holder taken here along the vertical direction)
 * Click on calculate to identify the diffracted plane (by default the script will search for planes with indices smaller than 5, but it can be changed in the "max indices" field). The output gives, the interplanar distance, the 3 indices of the planes and an arbitrary intensity (depends on the atomic structure factor you enter in space_group.txt)
 * Use these data to draw stereographic projection using [stereo-proj](https://github.com/mompiou/stereo-proj).
+* Plot the diffraction spectrum (for a given "maximum indices" value) from the menu bar.
 
 
 
