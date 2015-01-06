@@ -18,7 +18,7 @@ Index is a python script that allows you to determine diffraction spot indices f
 
 * Open an image from the menu bar
 * Enter the crystal parameters (a,b,c, alpha, beta, gamma)(in angstroem), or import it from the menu bar. The structure can be modified/added by modifying the structure.txt file. The format is: name a b c alpha beta gamma space group. 
-* Enter the space group or used the group given in the structure. It can be changed by modifying the space_group.txt. The format is:
+* Enter the space group or use the group given in the structure. It can be changed by modifying the space_group.txt. The format is:
 
 name 
 
@@ -26,7 +26,7 @@ atomic-structure-factor-1 x1 y1 z1
 
 atomic-structure-factor-n xn yn zn
 
-where x, y and z are the atom position in the unit cell.
+where x, y and z are the atom positions in the unit cell.
 
 * Enter the calibration. It can be modified in the calibration.txt file with the format: name energy camera-length binning product-px-times-d (px is the measured distance in the reciprocal space in pixels and d is the interplanar distance in angstroem)
 * Click on the image to set the reference point
