@@ -7,6 +7,7 @@ Index is a python script that allows you to determine diffraction spot indices f
 
 * Python 2.7 with numpy, matplotlib, PIL, Tkinter (use Enthought Canopy or Anaconda)
 * Mac Users need Active Tcl installed
+* If you want to use the script index-pyqt.py you'll need to install PyQt4.
 
 # User guide
 
