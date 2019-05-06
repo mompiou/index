@@ -1,7 +1,6 @@
 from __future__ import division
 import numpy as np
 from PyQt4 import QtGui, QtCore
-import sys
 import random
 import sys
 import os
@@ -14,11 +13,9 @@ import indexUI
 
 ######################
 #
-# click event control
+# click event control. Prevent to define a point when zooming
 #
 ######################
-
-
 
 def onpress(event):
 	global press,move
@@ -79,7 +76,8 @@ def reset_points():
     a.figure.canvas.draw()
     s=1
     gclick=np.zeros((1,2))
-    ui.ListBox_d_2.setPlainText('')
+    ui.ListBox_d_2.clear()
+    ui.ListBox_theo.clear()
     return s,gclick
 
 
@@ -108,6 +106,7 @@ def reset():
 	a.figure.canvas.draw()
 	gclick=np.zeros((1,2))
 	ui.ListBox_d_2.clear()
+	ui.ListBox_theo.clear()
 	s=1
 
 
@@ -137,7 +136,7 @@ def distance():
             
            
     if np.isinf(d)==0:
-        ui.ListBox_d_2.appendPlainText('d (A):'+str(np.around(d,decimals=2))+',Inclination:'+str(np.around(bet,decimals=2)))
+        ui.ListBox_d_2.addItem(str(np.around(d,decimals=2))+','+str(np.around(bet,decimals=2)))
     return d    
 
 
@@ -149,7 +148,7 @@ def distance():
 ############################
 
 def distance_theo():
-    global d
+    global d, G, Dstar
       
     a=np.float(ui.a_entry.text())
     b=np.float(ui.b_entry.text())
@@ -158,11 +157,14 @@ def distance_theo():
     bet=np.float(ui.beta_entry.text())
     gam=np.float(ui.gamma_entry.text())
     e=np.int(ui.indice_entry.text())
-    alp=alp*np.pi/180;
-    bet=bet*np.pi/180;
-    gam=gam*np.pi/180;
+    alpha=alp*np.pi/180
+    beta=bet*np.pi/180
+    gamma=gam*np.pi/180
     Dist=np.zeros(((2*e+1)**3-1,5))
-    G=np.array([[a**2,a*b*np.cos(gam),a*c*np.cos(bet)],[a*b*np.cos(gam),b**2,b*c*np.cos(alp)],[a*c*np.cos(bet),b*c*np.cos(alp),c**2]])    
+    V=a*b*c*np.sqrt(1-(np.cos(alpha)**2)-(np.cos(beta))**2-(np.cos(gamma))**2+2*np.cos(alpha)*np.cos(beta)*np.cos(gamma))
+    D=np.array([[a,b*np.cos(gamma),c*np.cos(beta)],[0,b*np.sin(gamma),  c*(np.cos(alpha)-np.cos(beta)*np.cos(gamma))/np.sin(gamma)],[0,0,V/(a*b*np.sin(gamma))]])
+    G=np.array([[a**2,a*b*np.cos(gamma),a*c*np.cos(beta)],[a*b*np.cos(gamma),b**2,b*c*np.cos(alpha)],[a*c*np.cos(beta),b*c*np.cos(alpha),c**2]])
+    Dstar=np.transpose(np.linalg.inv(D))   
     ui.ListBox_theo.clear()
     w=0
     for i in range(-e,e+1):
@@ -177,8 +179,216 @@ def distance_theo():
                     
                     
     for k in range(0,w):                                   
-        ui.ListBox_theo.appendPlainText('d(A):'+str(Dist[k,0])+', hkl:'+str(int(Dist[k,1]))+','+str(int(Dist[k,2]))+','+str(int(Dist[k,3]))+', I(a.u):'+str(Dist[k,4]))
+        ui.ListBox_theo.addItem(str(Dist[k,0])+','+str(int(Dist[k,1]))+','+str(int(Dist[k,2]))+','+str(int(Dist[k,3]))+','+str(Dist[k,4]))
     return 
+
+########################
+#
+# Add/Remove spot
+#
+#########################
+
+def add_spot():
+	s1=ui.ListBox_theo.currentItem().text().split(',')
+	s2=ui.ListBox_d_2.currentItem().text().split(',')
+	s3=ui.tilt_entry.text()
+	s=s3+','+s2[1]+','+s1[1]+','+s1[2]+','+s1[3]
+	ui.diff_spot_Listbox.addItem(s)
+
+def remove_spot():
+	ui.diff_spot_Listbox.takeItem(ui.diff_spot_Listbox.currentRow())
+
+######################################################
+#
+# Determine orientation from a set of at least 3 diff
+#
+####################################################
+
+def unique_rows(a):
+    a = np.ascontiguousarray(a)
+    unique_a = np.unique(a.view([('', a.dtype)]*a.shape[1]))
+    return unique_a.view(a.dtype).reshape((unique_a.shape[0], a.shape[1]))
+
+def Rot(th,a,b,c):
+   th=th*np.pi/180;
+   aa=a/np.linalg.norm([a,b,c]);
+   bb=b/np.linalg.norm([a,b,c]);
+   cc=c/np.linalg.norm([a,b,c]);
+   c1=np.array([[1,0,0],[0,1,0],[0,0,1]],float)
+   c2=np.array([[aa**2,aa*bb,aa*cc],[bb*aa,bb**2,bb*cc],[cc*aa,
+                cc*bb,cc**2]],float)
+   c3=np.array([[0,-cc,bb],[cc,0,-aa],[-bb,aa,0]],float)
+   R=np.cos(th)*c1+(1-np.cos(th))*c2+np.sin(th)*c3
+
+   return R    
+   
+def dhkl(g1,g2,g3):
+	global G       
+    	return 1/(np.sqrt(np.dot(np.array([g1,g2,g3]),np.dot(np.linalg.inv(G),np.array([g1,g2,g3])))))
+
+
+#
+# Get all equivalent diffraction +/-g
+# from permutation
+#
+	
+def perm_g(pole1,pole2,pole3):
+	
+	v=dhkl(pole1,pole2,pole3)
+	
+	g=np.array([[pole1,pole2,pole3],[pole1,pole2,-pole3],[pole1,-pole2,pole3],[-pole1,pole2,pole3],[pole2,pole1,pole3],[pole2,pole1,-pole3],[pole2,-pole1,pole3],[-pole2,pole1,pole3],[pole2,pole3,pole1],[pole2,pole3,-pole1],[pole2,-pole3,pole1],[-pole2,pole3,pole1],[pole1,pole3,pole2],[pole1,pole3,-pole2],[pole1,-pole3,pole2],[-pole1,pole3,pole2],[pole3,pole1,pole2],[pole3,pole1,-pole2],[pole3,-pole1,pole2],[-pole3,pole1,pole2],[pole3,pole2,pole1],[pole3,pole2,-pole1],[pole3,-pole2,pole1]])
+	
+	o=[]
+	for i in range(0,g.shape[0]):
+		if dhkl(g[i,0],g[i,1],g[i,2])==v:
+			o=np.append(o,i)
+	g=g[np.array(o,dtype=int),:]
+	g=np.vstack((g,-g))
+	g=unique_rows(g)
+	return g
+
+#
+# Determine x,y,z axis in crystal coordinates for all the possible sets
+# of diffraction vectors. Retrieve the Euler angles from x,y,z. Define the
+# index=(x.y)^z as the measure of the orthogonality of the three vectors (should
+# be very close to 1). Incorrect index can be the consequence of a choice of cop# lanar vectors.
+#
+
+
+def euler_determine_3(g_perm,g_sample):
+	R=[]
+	for i in range(0,g_perm[0].shape[0]):
+		for j in range(0,g_perm[1].shape[0]):
+			for k in range(0,g_perm[2].shape[0]):
+				
+					g0=g_perm[0][i]
+					g1=g_perm[1][j]
+					g2=g_perm[2][k]
+					Gs=np.array([g0,g1,g2])
+					Gs=np.dot(Dstar,Gs.T)
+					Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
+					x=np.linalg.lstsq(Gs,g_sample[:,0])[0]
+					x=x/np.linalg.norm(x)
+					y=np.linalg.lstsq(Gs,g_sample[:,1])[0]
+					y=y/np.linalg.norm(y)
+					z,res=np.linalg.lstsq(Gs,g_sample[:,2])[0:2]
+					z=z/np.linalg.norm(z)
+					phi_1=np.arctan2(x[2],-y[2])*180/np.pi
+					phi=np.arccos(z[2])*180/np.pi
+					phi_2=np.arctan2(z[0],z[1])*180/np.pi
+					R.append([np.dot(np.cross(x,y),z), 0,phi_1,phi,phi_2,x[0],x[1],x[2],y[0],y[1],y[2],z[0],z[1],z[2]])
+	
+	R=np.array(R)
+	R=R[np.argwhere(np.abs(-R[:,0]+np.amax(R[:,0]))<0.00000001),:]
+	return R		
+
+def euler_determine_4(g_perm,g_sample):
+	R=[]
+	for i in range(0,g_perm[0].shape[0]):
+		for j in range(0,g_perm[1].shape[0]):
+			for k in range(0,g_perm[2].shape[0]):
+				for l in range(0,g_perm[3].shape[0]):
+					g0=g_perm[0][i]
+					g1=g_perm[1][j]
+					g2=g_perm[2][k]
+					g3=g_perm[3][l]
+					Gs=np.array([g0,g1,g2,g3])
+					Gs=np.dot(Dstar,Gs.T)
+					Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
+					x=np.linalg.lstsq(Gs,g_sample[:,0])[0]
+					x=x/np.linalg.norm(x)
+					y=np.linalg.lstsq(Gs,g_sample[:,1])[0]
+					y=y/np.linalg.norm(y)
+					z,res=np.linalg.lstsq(Gs,g_sample[:,2])[0:2]
+					z=z/np.linalg.norm(z)
+					phi_1=np.arctan2(x[2],-y[2])*180/np.pi
+					phi=np.arccos(z[2])*180/np.pi
+					phi_2=np.arctan2(z[0],z[1])*180/np.pi
+					
+					if res:
+						R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,x[0],x[1],x[2],y[0],y[1],y[2],z[0],z[1],z[2]])
+	
+	R=np.array(R)
+	R=R[np.argwhere(np.abs(-R[:,0]+np.amax(R[:,0]))<0.00000001),:]
+	return R		
+
+	
+def euler_determine_5(g_perm,g_sample):
+	R=[]
+	for j in range(0,g_perm[1].shape[0]):
+		for k in range(0,g_perm[2].shape[0]):
+			for l in range(0,g_perm[3].shape[0]):
+				for m in range(0,g_perm[4].shape[0]):
+					g0=g_perm[0][i]
+					g1=g_perm[1][j]
+					g2=g_perm[2][k]
+					g3=g_perm[3][l]
+					g4=g_perm[4][m]
+					Gs=np.array([g0,g1,g2,g3,g4])
+					Gs=np.dot(Dstar,Gs.T)
+					Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
+					x=np.linalg.lstsq(Gs,g_sample[:,0])[0]
+					x=x/np.linalg.norm(x)
+					y=np.linalg.lstsq(Gs,g_sample[:,1])[0]
+					y=y/np.linalg.norm(y)
+					z,res=np.linalg.lstsq(Gs,g_sample[:,2])[0:2]
+					z=z/np.linalg.norm(z)
+					phi_1=np.arctan2(x[2],-y[2])*180/np.pi
+					phi=np.arccos(z[2])*180/np.pi
+					phi_2=np.arctan2(z[0],z[1])*180/np.pi
+					if res:
+						R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,x[0],x[1],x[2],y[0],y[1],y[2],z[0],z[1],z[2]])
+	
+	R=np.array(R)
+	R=R[np.argwhere(np.abs(-R[:,0]+np.amax(R[:,0]))<0.00000001),:]
+	return R		
+
+#
+# Determine orientation from the selected spots.
+#
+
+def get_orientation():
+	global G, Dstar
+	ui.euler_listbox.clear()
+	
+	s=[str(x.text()) for x in ui.diff_spot_Listbox.selectedItems()]
+	tilt_inclinaison=[]
+	g_hkl=[]
+	for i in range(0,len(s)):
+		l=map(float, s[i].split(','))
+		tilt_inclinaison.append(l[0:2])
+		g_hkl.append(l[2:5])
+	
+	g_hkl=np.array(g_hkl)
+	tilt_inclinaison=np.array(tilt_inclinaison)
+	
+	g_perm=[]
+	for i in range(0,np.shape(g_hkl)[0]):
+		g_perm.append(perm_g(g_hkl[i,0],g_hkl[i,1],g_hkl[i,2]))
+		
+
+	g_sample=np.zeros((np.shape(tilt_inclinaison)[0],3))
+	for i in range(0,np.shape(tilt_inclinaison)[0]):
+		g_sample[i,:]=np.dot(Rot(-tilt_inclinaison[i,0],0,1,0),np.dot(Rot(-tilt_inclinaison[i,1],0,0,1),np.array([0,1,0])))
+
+
+	if g_hkl.shape[0]==3:
+		R=euler_determine_3(g_perm,g_sample)
+		
+	elif g_hkl.shape[0]==4:
+		R=euler_determine_4(g_perm,g_sample)
+		
+	elif g_hkl.shape[0]==5:
+		R=euler_determine_5(g_perm,g_sample)
+		
+	else:
+		ui.euler_listbox.addItem("Number of spots should be between 3 and 5") 
+	np.set_printoptions(suppress=True)
+	if R.shape[0]>0:
+		ui.euler_listbox.addItem('Phi1,Phi,Phi2,index, residual')
+		for i in range(0,R.shape[0]):
+			ui.euler_listbox.addItem(str(np.around(R[i,0,2],decimals=3))+','+str(np.around(R[i,0,3],decimals=3))+','+str(np.around(R[i,0,4],decimals=3))+','+str(np.around(R[i,0,0],decimals=5))+','+str(np.around(R[i,0,1],decimals=5))) 
+	
 
 
 #########################
@@ -342,41 +552,26 @@ class Spect(QtGui.QDialog):
     
     
 def extinction(space_group,h,k,l):
-    global x_space
+    global x_space, G
     F=0
     s=0
-    
+    q=2*np.pi*1e-10/(np.sqrt(np.dot(np.array([h,k,l]),np.dot(np.linalg.inv(G),np.array([h,k,l])))))
     
     for i in range(0,len(x_space)):
         if space_group==x_space[i][0]:
             s=i
        
     while (s<(len(x_space)-1) and (len(x_space[s+1])==4)):
-        f=eval(x_space[s+1][0])
+    	
+        f=str(x_space[s+1][0])
+        for z in range(0,len(x_scatt)):
+		if f==x_scatt[z][0]:
+			f=eval(x_scatt[z][1])*np.exp(-eval(x_scatt[z][2])*(q/4/np.pi)**2)+eval(x_scatt[z][3])*np.exp(-eval(x_scatt[z][4])*(q/4/np.pi)**2)+eval(x_scatt[z][5])*np.exp(-eval(x_scatt[z][6])*(q/4/np.pi)**2)+eval(x_scatt[z][7])*np.exp(-eval(x_scatt[z][8])*(q/4/np.pi)**2)+eval(x_scatt[z][9])
         F=F+f*np.exp(2j*np.pi*(eval(x_space[s+1][1])*h+eval(x_space[s+1][2])*k+eval(x_space[s+1][3])*l))        
         s=s+1
     I=np.around(float(np.real(F*np.conj(F))),decimals=2)
     return I
 
-#########################
-#
-# Get space group data from inpt file space_group.txt
-#
-############################
-
-f_space=open(os.path.join(os.path.dirname(__file__), 'space_group.txt'),"r")
-
-x_space=[]
-
-for line in f_space:
-    x_space.append(map(str, line.split()))
-    
-list_space_group=[]
-for i in range(0,len(x_space)):
-    if len(x_space[i])==1:
-        list_space_group.append(x_space[i][0])
-        
-f_space.close()
 
 
 ##################################################
@@ -444,14 +639,31 @@ counter=len(x_calib)
 for i in range(counter):
     ui.Calib_box.addItem(x_calib[i][0]+' '+x_calib[i][1]+'keV '+x_calib[i][2]+'cm'+', Binning:'+x_calib[i][3])
     
+#########################
+#
+# Get space group data from inpt file space_group.txt
+#
+############################
 
+f_space=open(os.path.join(os.path.dirname(__file__), 'space_group.txt'),"r")
+
+x_space=[]
+
+for line in f_space:
+    x_space.append(map(str, line.split()))
+    
+list_space_group=[]
+for i in range(0,len(x_space)):
+    if len(x_space[i])==1:
+        list_space_group.append(x_space[i][0])
+        
+f_space.close()
     
  
-#######################################################################################
-#
+#################################################################################
 # import crystal structures from un txt file Name,a,b,c,alpha,beta,gamma,space group
 #
-#######################################################################################
+################################################################################
 
 def structure(item):
     global x0, var_hexa, d_label_var, e_entry
@@ -503,14 +715,17 @@ figure.canvas.mpl_connect('motion_notify_event', onmove)
 press=False
 move=False
 
-
 ui.Button_reset.clicked.connect(reset_points)
 ui.Button_reset_all.clicked.connect(reset)
 ui.distance_button.clicked.connect(distance_theo)
 dialSpect = Spect()
 dialSpect.setWindowTitle("Spectrum")
 Index.connect(ui.actionCalculate_spectrum, QtCore.SIGNAL('triggered()'), dialSpect.exec_)  
+ui.add_spot_button.clicked.connect(add_spot)
+ui.remove_spot_button.clicked.connect(remove_spot)
+ui.orientation_button.clicked.connect(get_orientation)
 
+ui.diff_spot_Listbox.setSelectionMode(QtGui.QListWidget.ExtendedSelection)
 ui.n_entry.setText('1')
 ui.indice_entry.setText('5')
 s=1
