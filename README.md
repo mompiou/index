@@ -57,7 +57,7 @@ where the coefficients correspond to the Gaussian decomposition (cf. [TU Graz - 
 	* Add a spot. The field `Diffraction spots` will show `tilt angle, inclination angle, h,k,l`.
 	* Remove spots if needed.
 	* Select at least 3 spots (and less than 5)
-	* Get the orientation and get `Phi1, phi, Phi2, index, residual`. `index` is a measure of the correctness (should be very close to 1). A `residual` value is expected if the number of spots is more than 3 (least square minimization).	
+	* Get the orientation and get `Phi1, phi, Phi2, Mean angular deviation, Orthogonality, Residual`. `Mean angular deviation` measures the mean angle between calculated and observed diffraction vector (should be small typically 1°). `Orthogonality` is a measure of the orthogonality of the three x,y,z axies (should be very close to 1). A `residual` value is expected if the number of spots is more than 3 (least square minimization).	
 	
 * Use these data to draw stereographic projection using [stereo-proj](https://github.com/mompiou/stereo-proj).
 * Plot the diffraction spectrum (for a given "maximum indices" value) from the menu bar.

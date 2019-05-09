@@ -221,6 +221,19 @@ def Rot(th,a,b,c):
    R=np.cos(th)*c1+(1-np.cos(th))*c2+np.sin(th)*c3
 
    return R    
+
+def rotation(phi1,phi,phi2):
+   phi1=phi1*np.pi/180;
+   phi=phi*np.pi/180;
+   phi2=phi2*np.pi/180;
+   R=np.array([[np.cos(phi1)*np.cos(phi2)-np.cos(phi)*np.sin(phi1)*np.sin(phi2),
+            -np.cos(phi)*np.cos(phi2)*np.sin(phi1)-np.cos(phi1)*
+            np.sin(phi2),np.sin(phi)*np.sin(phi1)],[np.cos(phi2)*np.sin(phi1)
+            +np.cos(phi)*np.cos(phi1)*np.sin(phi2),np.cos(phi)*np.cos(phi1)
+            *np.cos(phi2)-np.sin(phi1)*np.sin(phi2), -np.cos(phi1)*np.sin(phi)],
+            [np.sin(phi)*np.sin(phi2), np.cos(phi2)*np.sin(phi), np.cos(phi)]],float)
+   return R
+
    
 def dhkl(g1,g2,g3):
 	global G       
@@ -276,10 +289,14 @@ def euler_determine_3(g_perm,g_sample):
 					phi_1=np.arctan2(x[2],-y[2])*180/np.pi
 					phi=np.arccos(z[2])*180/np.pi
 					phi_2=np.arctan2(z[0],z[1])*180/np.pi
-					R.append([np.dot(np.cross(x,y),z), 0,phi_1,phi,phi_2,x[0],x[1],x[2],y[0],y[1],y[2],z[0],z[1],z[2]])
+					t=0
+					for r in range(0,3):
+						t=t+np.abs(np.arccos(np.dot(np.dot(rotation(phi_1,phi,phi_2),Gs[r,:]),g_sample[r,:]))*180/np.pi)
+					t=t/r
+					R.append([np.dot(np.cross(x,y),z),0,phi_1,phi,phi_2,t])
 	
 	R=np.array(R)
-	R=R[np.argwhere(np.abs(-R[:,0]+np.amax(R[:,0]))<0.00000001),:]
+	R=R[np.argwhere(np.abs(-R[:,5]+np.amin(R[:,5]))<0.00000001),:]
 	return R		
 
 def euler_determine_4(g_perm,g_sample):
@@ -304,12 +321,16 @@ def euler_determine_4(g_perm,g_sample):
 					phi_1=np.arctan2(x[2],-y[2])*180/np.pi
 					phi=np.arccos(z[2])*180/np.pi
 					phi_2=np.arctan2(z[0],z[1])*180/np.pi
+					t=0
+					for r in range(0,4):
+						t=t+np.abs(np.arccos(np.dot(np.dot(rotation(phi_1,phi,phi_2),Gs[r,:]),g_sample[r,:]))*180/np.pi)
+					t=t/r
 					
 					if res:
-						R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,x[0],x[1],x[2],y[0],y[1],y[2],z[0],z[1],z[2]])
+						R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,t])
 	
 	R=np.array(R)
-	R=R[np.argwhere(np.abs(-R[:,0]+np.amax(R[:,0]))<0.00000001),:]
+	R=R[np.argwhere(np.abs(-R[:,5]+np.amin(R[:,5]))<0.00000001),:]
 	return R		
 
 	
@@ -336,11 +357,16 @@ def euler_determine_5(g_perm,g_sample):
 					phi_1=np.arctan2(x[2],-y[2])*180/np.pi
 					phi=np.arccos(z[2])*180/np.pi
 					phi_2=np.arctan2(z[0],z[1])*180/np.pi
+					t=0
+					for r in range(0,5):
+						t=t+np.abs(np.arccos(np.dot(np.dot(rotation(phi_1,phi,phi_2),Gs[r,:]),g_sample[r,:]))*180/np.pi)
+					t=t/r
 					if res:
-						R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,x[0],x[1],x[2],y[0],y[1],y[2],z[0],z[1],z[2]])
+						R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,t])
 	
 	R=np.array(R)
-	R=R[np.argwhere(np.abs(-R[:,0]+np.amax(R[:,0]))<0.00000001),:]
+	R=R[np.argwhere(np.abs(-R[:,5]+np.amin(R[:,5]))<0.00000001),:]
+	
 	return R		
 
 #
@@ -354,6 +380,7 @@ def get_orientation():
 	s=[str(x.text()) for x in ui.diff_spot_Listbox.selectedItems()]
 	tilt_inclinaison=[]
 	g_hkl=[]
+	
 	for i in range(0,len(s)):
 		l=map(float, s[i].split(','))
 		tilt_inclinaison.append(l[0:2])
@@ -385,9 +412,9 @@ def get_orientation():
 		ui.euler_listbox.addItem("Number of spots should be between 3 and 5") 
 	np.set_printoptions(suppress=True)
 	if R.shape[0]>0:
-		ui.euler_listbox.addItem('Phi1,Phi,Phi2,index, residual')
+		ui.euler_listbox.addItem('Phi1,Phi,Phi2   | Mean angular deviation, Orthogonality, Residual')
 		for i in range(0,R.shape[0]):
-			ui.euler_listbox.addItem(str(np.around(R[i,0,2],decimals=3))+','+str(np.around(R[i,0,3],decimals=3))+','+str(np.around(R[i,0,4],decimals=3))+','+str(np.around(R[i,0,0],decimals=5))+','+str(np.around(R[i,0,1],decimals=5))) 
+			ui.euler_listbox.addItem(str(np.around(R[i,0,2],decimals=3))+','+str(np.around(R[i,0,3],decimals=3))+','+str(np.around(R[i,0,4],decimals=3))+'   | '+str(np.around(R[i,0,5],decimals=3))+','+str(np.around(R[i,0,0],decimals=5))+','+str(np.around(R[i,0,1],decimals=6))) 
 	
 
 
