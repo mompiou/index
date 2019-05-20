@@ -336,33 +336,34 @@ def euler_determine_4(g_perm,g_sample):
 	
 def euler_determine_5(g_perm,g_sample):
 	R=[]
-	for j in range(0,g_perm[1].shape[0]):
-		for k in range(0,g_perm[2].shape[0]):
-			for l in range(0,g_perm[3].shape[0]):
-				for m in range(0,g_perm[4].shape[0]):
-					g0=g_perm[0][i]
-					g1=g_perm[1][j]
-					g2=g_perm[2][k]
-					g3=g_perm[3][l]
-					g4=g_perm[4][m]
-					Gs=np.array([g0,g1,g2,g3,g4])
-					Gs=np.dot(Dstar,Gs.T)
-					Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
-					x=np.linalg.lstsq(Gs,g_sample[:,0])[0]
-					x=x/np.linalg.norm(x)
-					y=np.linalg.lstsq(Gs,g_sample[:,1])[0]
-					y=y/np.linalg.norm(y)
-					z,res=np.linalg.lstsq(Gs,g_sample[:,2])[0:2]
-					z=z/np.linalg.norm(z)
-					phi_1=np.arctan2(x[2],-y[2])*180/np.pi
-					phi=np.arccos(z[2])*180/np.pi
-					phi_2=np.arctan2(z[0],z[1])*180/np.pi
-					t=0
-					for r in range(0,5):
-						t=t+np.abs(np.arccos(np.dot(np.dot(rotation(phi_1,phi,phi_2),Gs[r,:]),g_sample[r,:]))*180/np.pi)
-					t=t/r
-					if res:
-						R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,t])
+	for i in range(0,g_perm[0].shape[0]):
+		for j in range(0,g_perm[1].shape[0]):
+			for k in range(0,g_perm[2].shape[0]):
+				for l in range(0,g_perm[3].shape[0]):
+					for m in range(0,g_perm[4].shape[0]):
+						g0=g_perm[0][i]
+						g1=g_perm[1][j]
+						g2=g_perm[2][k]
+						g3=g_perm[3][l]
+						g4=g_perm[4][m]
+						Gs=np.array([g0,g1,g2,g3,g4])
+						Gs=np.dot(Dstar,Gs.T)
+						Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
+						x=np.linalg.lstsq(Gs,g_sample[:,0])[0]
+						x=x/np.linalg.norm(x)
+						y=np.linalg.lstsq(Gs,g_sample[:,1])[0]
+						y=y/np.linalg.norm(y)
+						z,res=np.linalg.lstsq(Gs,g_sample[:,2])[0:2]
+						z=z/np.linalg.norm(z)
+						phi_1=np.arctan2(x[2],-y[2])*180/np.pi
+						phi=np.arccos(z[2])*180/np.pi
+						phi_2=np.arctan2(z[0],z[1])*180/np.pi
+						t=0
+						for r in range(0,5):
+							t=t+np.abs(np.arccos(np.dot(np.dot(rotation(phi_1,phi,phi_2),Gs[r,:]),g_sample[r,:]))*180/np.pi)
+						t=t/r
+						if res:
+							R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,t])
 	
 	R=np.array(R)
 	R=R[np.argwhere(np.abs(-R[:,5]+np.amin(R[:,5]))<0.00000001),:]
