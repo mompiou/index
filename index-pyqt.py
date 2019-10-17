@@ -10,6 +10,7 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib import pyplot as plt
 import indexUI
+import time
 
 ######################
 #
@@ -253,7 +254,7 @@ def perm_g(pole1,pole2,pole3):
 	
 	o=[]
 	for i in range(0,g.shape[0]):
-		if dhkl(g[i,0],g[i,1],g[i,2])==v:
+		if np.abs(dhkl(g[i,0],g[i,1],g[i,2])-v)<1e-9:
 			o=np.append(o,i)
 	g=g[np.array(o,dtype=int),:]
 	g=np.vstack((g,-g))
@@ -264,7 +265,7 @@ def perm_g(pole1,pole2,pole3):
 # Determine x,y,z axis in crystal coordinates for all the possible sets
 # of diffraction vectors. Retrieve the Euler angles from x,y,z. Define the
 # index=(x.y)^z as the measure of the orthogonality of the three vectors (should
-# be very close to 1). Incorrect index can be the consequence of a choice of cop# lanar vectors.
+# be very close to 1). Incorrect index can be the consequence of a choice of coplanar vectors.
 #
 
 
@@ -273,7 +274,6 @@ def euler_determine_3(g_perm,g_sample):
 	for i in range(0,g_perm[0].shape[0]):
 		for j in range(0,g_perm[1].shape[0]):
 			for k in range(0,g_perm[2].shape[0]):
-				
 					g0=g_perm[0][i]
 					g1=g_perm[1][j]
 					g2=g_perm[2][k]
@@ -296,88 +296,141 @@ def euler_determine_3(g_perm,g_sample):
 					R.append([np.dot(np.cross(x,y),z),0,phi_1,phi,phi_2,t])
 	
 	R=np.array(R)
-	R=R[np.argwhere(np.abs(-R[:,5]+np.amin(R[:,5]))<0.00000001),:]
+	R=R[np.argmin(R[:,5]),:]
 	return R		
 
 def euler_determine_4(g_perm,g_sample):
 	R=[]
+	N=[]
 	for i in range(0,g_perm[0].shape[0]):
 		for j in range(0,g_perm[1].shape[0]):
 			for k in range(0,g_perm[2].shape[0]):
-				for l in range(0,g_perm[3].shape[0]):
 					g0=g_perm[0][i]
 					g1=g_perm[1][j]
 					g2=g_perm[2][k]
-					g3=g_perm[3][l]
-					Gs=np.array([g0,g1,g2,g3])
+					Gs=np.array([g0,g1,g2])
 					Gs=np.dot(Dstar,Gs.T)
 					Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
-					x=np.linalg.lstsq(Gs,g_sample[:,0])[0]
+					x=np.linalg.lstsq(Gs,g_sample[0:3,0])[0]
 					x=x/np.linalg.norm(x)
-					y=np.linalg.lstsq(Gs,g_sample[:,1])[0]
+					y=np.linalg.lstsq(Gs,g_sample[0:3,1])[0]
 					y=y/np.linalg.norm(y)
-					z,res=np.linalg.lstsq(Gs,g_sample[:,2])[0:2]
+					z=np.linalg.lstsq(Gs,g_sample[0:3,2])[0]
 					z=z/np.linalg.norm(z)
-					phi_1=np.arctan2(x[2],-y[2])*180/np.pi
-					phi=np.arccos(z[2])*180/np.pi
-					phi_2=np.arctan2(z[0],z[1])*180/np.pi
-					t=0
-					for r in range(0,4):
-						t=t+np.abs(np.arccos(np.dot(np.dot(rotation(phi_1,phi,phi_2),Gs[r,:]),g_sample[r,:]))*180/np.pi)
-					t=t/r
-					
-					if res:
-						R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,t])
+					c=np.dot(np.cross(x,y),z)
+					N.append([c,g0[0],g0[1],g0[2],g1[0],g1[1],g1[2],g2[0],g2[1],g2[2]])
+	
+	N=np.array(N)
+	N=N[np.argmax(N[:,0]),1:]
+	g0=N[0:3]
+	g1=N[3:6]
+	g2=N[6:9]
+	
+	for l in range(0,g_perm[3].shape[0]):
+		g3=g_perm[3][l]
+		Gs=np.array([g0,g1,g2,g3],dtype=float)
+		Gs=np.dot(Dstar,Gs.T)
+		Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
+		x=np.linalg.lstsq(Gs,g_sample[:,0])[0]
+		x=x/np.linalg.norm(x)
+		y=np.linalg.lstsq(Gs,g_sample[:,1])[0]
+		y=y/np.linalg.norm(y)
+		z,res=np.linalg.lstsq(Gs,g_sample[:,2])[0:2]
+		z=z/np.linalg.norm(z)
+		phi_1=np.arctan2(x[2],-y[2])*180/np.pi
+		phi=np.arccos(z[2])*180/np.pi
+		phi_2=np.arctan2(z[0],z[1])*180/np.pi
+		t=0
+		for r in range(0,4):
+			t=t+np.abs(np.arccos(np.dot(np.dot(rotation(phi_1,phi,phi_2),Gs[r,:]),g_sample[r,:]))*180/np.pi)
+		t=t/r
+		
+		if res:
+			R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,t])
 	
 	R=np.array(R)
-	R=R[np.argwhere(np.abs(-R[:,5]+np.amin(R[:,5]))<0.00000001),:]
+	R=R[np.argmin(R[:,5]),:]
 	return R		
 
 	
 def euler_determine_5(g_perm,g_sample):
 	R=[]
+	N=[]
+	L=[]
 	for i in range(0,g_perm[0].shape[0]):
 		for j in range(0,g_perm[1].shape[0]):
 			for k in range(0,g_perm[2].shape[0]):
-				for l in range(0,g_perm[3].shape[0]):
-					for m in range(0,g_perm[4].shape[0]):
-						g0=g_perm[0][i]
-						g1=g_perm[1][j]
-						g2=g_perm[2][k]
-						g3=g_perm[3][l]
-						g4=g_perm[4][m]
-						Gs=np.array([g0,g1,g2,g3,g4])
-						Gs=np.dot(Dstar,Gs.T)
-						Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
-						x=np.linalg.lstsq(Gs,g_sample[:,0])[0]
-						x=x/np.linalg.norm(x)
-						y=np.linalg.lstsq(Gs,g_sample[:,1])[0]
-						y=y/np.linalg.norm(y)
-						z,res=np.linalg.lstsq(Gs,g_sample[:,2])[0:2]
-						z=z/np.linalg.norm(z)
-						phi_1=np.arctan2(x[2],-y[2])*180/np.pi
-						phi=np.arccos(z[2])*180/np.pi
-						phi_2=np.arctan2(z[0],z[1])*180/np.pi
-						t=0
-						for r in range(0,5):
-							t=t+np.abs(np.arccos(np.dot(np.dot(rotation(phi_1,phi,phi_2),Gs[r,:]),g_sample[r,:]))*180/np.pi)
-						t=t/r
-						if res:
-							R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,t])
+					g0=g_perm[0][i]
+					g1=g_perm[1][j]
+					g2=g_perm[2][k]
+					Gs=np.array([g0,g1,g2])
+					Gs=np.dot(Dstar,Gs.T)
+					Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
+					x=np.linalg.lstsq(Gs,g_sample[0:3,0])[0]
+					x=x/np.linalg.norm(x)
+					y=np.linalg.lstsq(Gs,g_sample[0:3,1])[0]
+					y=y/np.linalg.norm(y)
+					z=np.linalg.lstsq(Gs,g_sample[0:3,2])[0]
+					z=z/np.linalg.norm(z)
+					c=np.abs(np.dot(np.cross(x,y),z))
+					N.append([c,g0[0],g0[1],g0[2],g1[0],g1[1],g1[2],g2[0],g2[1],g2[2]])
 	
+	N=np.array(N)
+	N=N[np.argmax(N[:,0]),1:]
+	
+	g0=N[0:3]
+	g1=N[3:6]
+	g2=N[6:9]
+	
+	for l in range(0,g_perm[3].shape[0]):
+		g3=g_perm[3][l]
+		Gs=np.array([g0,g1,g2,g3],dtype=float)
+		Gs=np.dot(Dstar,Gs.T)
+		Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
+		z,res=np.linalg.lstsq(Gs,g_sample[0:4,2])[0:2]
+		L.append([res,g0[0],g0[1],g0[2],g1[0],g1[1],g1[2],g2[0],g2[1],g2[2],g3[0],g3[1],g3[2]])
+	
+	L=np.array(L)
+	L=L[np.argmin(L[:,0]),1:]
+	g0=L[0:3]
+	g1=L[3:6]
+	g2=L[6:9]
+	g3=L[9:12]
+	
+	for n in range(0,g_perm[4].shape[0]):
+		g4=g_perm[4][n]
+		Gs=np.array([g0,g1,g2,g3,g4],dtype=float)
+		Gs=np.dot(Dstar,Gs.T)
+		Gs=(Gs/np.linalg.norm(Gs.T,axis=1)).T
+		x=np.linalg.lstsq(Gs,g_sample[:,0])[0]
+		x=x/np.linalg.norm(x)
+		y=np.linalg.lstsq(Gs,g_sample[:,1])[0]
+		y=y/np.linalg.norm(y)
+		z,res=np.linalg.lstsq(Gs,g_sample[:,2])[0:2]
+		z=z/np.linalg.norm(z)
+		phi_1=np.arctan2(x[2],-y[2])*180/np.pi
+		phi=np.arccos(z[2])*180/np.pi
+		phi_2=np.arctan2(z[0],z[1])*180/np.pi
+		t=0
+		for r in range(0,5):
+			t=t+np.abs(np.arccos(np.dot(np.dot(rotation(phi_1,phi,phi_2),Gs[r,:]),g_sample[r,:]))*180/np.pi)
+		t=t/r
+		if res:
+			R.append([np.dot(np.cross(x,y),z), res[0],phi_1,phi,phi_2,t])	
 	R=np.array(R)
-	R=R[np.argwhere(np.abs(-R[:,5]+np.amin(R[:,5]))<0.00000001),:]
-	
+	R=R[np.argmin(R[:,5]),:]
 	return R		
 
+########################################
 #
 # Determine orientation from the selected spots.
 #
-
+#########################################
+ 
 def get_orientation():
 	global G, Dstar
-	ui.euler_listbox.clear()
 	
+	ui.euler_listbox.clear()
 	s=[str(x.text()) for x in ui.diff_spot_Listbox.selectedItems()]
 	tilt_inclinaison=[]
 	g_hkl=[]
@@ -394,7 +447,6 @@ def get_orientation():
 	for i in range(0,np.shape(g_hkl)[0]):
 		g_perm.append(perm_g(g_hkl[i,0],g_hkl[i,1],g_hkl[i,2]))
 		
-
 	g_sample=np.zeros((np.shape(tilt_inclinaison)[0],3))
 	for i in range(0,np.shape(tilt_inclinaison)[0]):
 		g_sample[i,:]=np.dot(Rot(-tilt_inclinaison[i,0],0,1,0),np.dot(Rot(-tilt_inclinaison[i,1],0,0,1),np.array([0,1,0])))
@@ -414,9 +466,8 @@ def get_orientation():
 	np.set_printoptions(suppress=True)
 	if R.shape[0]>0:
 		ui.euler_listbox.addItem('Phi1,Phi,Phi2   | Mean angular deviation, Orthogonality, Residual')
-		for i in range(0,R.shape[0]):
-			ui.euler_listbox.addItem(str(np.around(R[i,0,2],decimals=3))+','+str(np.around(R[i,0,3],decimals=3))+','+str(np.around(R[i,0,4],decimals=3))+'   | '+str(np.around(R[i,0,5],decimals=3))+','+str(np.around(R[i,0,0],decimals=5))+','+str(np.around(R[i,0,1],decimals=6))) 
-	
+		ui.euler_listbox.addItem(str(np.around(R[2],decimals=3))+','+str(np.around(R[3],decimals=3))+','+str(np.around(R[4],decimals=3))+'   | '+str(np.around(R[5],decimals=3))+','+str(np.around(R[0],decimals=5))+','+str(np.around(R[1],decimals=6))) 
+			
 
 
 #########################
