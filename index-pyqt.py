@@ -151,16 +151,18 @@ def distance():
 def distance_theo():
     global d, G, Dstar
       
-    a=np.float(ui.a_entry.text())
-    b=np.float(ui.b_entry.text())
-    c=np.float(ui.c_entry.text())
-    alp=np.float(ui.alpha_entry.text())
-    bet=np.float(ui.beta_entry.text())
-    gam=np.float(ui.gamma_entry.text())
+    abc=ui.abc_entry.text().split(",")
+    a=np.float(abc[0])
+    b=np.float(abc[1])
+    c=np.float(abc[2])
+    alphabetagamma=ui.alphabetagamma_entry.text().split(",")
+    alpha=np.float(alphabetagamma[0])
+    beta=np.float(alphabetagamma[1])
+    gamma=np.float(alphabetagamma[2])
     e=np.int(ui.indice_entry.text())
-    alpha=alp*np.pi/180
-    beta=bet*np.pi/180
-    gamma=gam*np.pi/180
+    alpha=alpha*np.pi/180
+    beta=beta*np.pi/180
+    gamma=gamma*np.pi/180
     Dist=np.zeros(((2*e+1)**3-1,5))
     V=a*b*c*np.sqrt(1-(np.cos(alpha)**2)-(np.cos(beta))**2-(np.cos(gamma))**2+2*np.cos(alpha)*np.cos(beta)*np.cos(gamma))
     D=np.array([[a,b*np.cos(gamma),c*np.cos(beta)],[0,b*np.sin(gamma),  c*(np.cos(alpha)-np.cos(beta)*np.cos(gamma))/np.sin(gamma)],[0,0,V/(a*b*np.sin(gamma))]])
@@ -556,16 +558,18 @@ class Spect(QtGui.QDialog):
         global x_space
         a2=self.figure.add_subplot(111)
         a2.clear()
-        a=np.float(ui.a_entry.text())
-        b=np.float(ui.b_entry.text())
-        c=np.float(ui.c_entry.text())
-        alp=np.float(ui.alpha_entry.text())
-        bet=np.float(ui.beta_entry.text())
-        gam=np.float(ui.gamma_entry.text())
+        abc=ui.abc_entry.text().split(",")
+    	a=np.float(abc[0])
+    	b=np.float(abc[1])
+    	c=np.float(abc[2])
+    	alphabetagamma=ui.alphabetagamma_entry.text().split(",")
+    	alpha=np.float(alphabetagamma[0])
+    	beta=np.float(alphabetagamma[1])
+    	gamma=np.float(alphabetagamma[2])
         e=np.int(self.lineEdit.text())
-        alp=alp*np.pi/180;
-        bet=bet*np.pi/180;
-        gam=gam*np.pi/180;
+        alp=alpha*np.pi/180
+        bet=beta*np.pi/180
+        gam=gamma*np.pi/180
         G=np.array([[a**2,a*b*np.cos(gam),a*c*np.cos(bet)],[a*b*np.cos(gam),b**2,b*c*np.cos(alp)],[a*c*np.cos(bet),b*c*np.cos(alp),c**2]])    
         
         di=np.zeros((1,4))
@@ -698,12 +702,12 @@ if __name__ == "__main__":
 	ui.mplvl.addWidget(canvas)
 	toolbar = NavigationToolbar(canvas, canvas)
 	toolbar.setMinimumWidth(601)
-
-############################################################"
+	#Index.setWindowOpacity(0.8)
+######################################################
 #
 # Import calibrations from txt files: microscope, E(kV),camera lebghth (cm), binning,px/A
 #
-#############################################################"
+######################################################
 
 f_calib=open(os.path.join(os.path.dirname(__file__), 'calibrations.txt'),"r")
 
@@ -745,14 +749,9 @@ f_space.close()
 ################################################################################
 
 def structure(item):
-    global x0, var_hexa, d_label_var, e_entry
-    
-    ui.a_entry.setText(str(item[1]))
-    ui.b_entry.setText(str(item[2]))
-    ui.c_entry.setText(str(item[3]))
-    ui.alpha_entry.setText(str(item[4]))
-    ui.beta_entry.setText(str(item[5]))
-    ui.gamma_entry.setText(str(item[6]))
+    global x0, e_entry
+    ui.abc_entry.setText(str(item[1])+','+str(item[2])+','+str(item[3]))
+    ui.alphabetagamma_entry.setText(str(item[4])+','+str(item[5])+','+str(item[6]))
     ii=ui.SpaceGroup_box.findText(item[7])
     ui.SpaceGroup_box.setCurrentIndex(ii)
     
@@ -807,6 +806,7 @@ ui.orientation_button.clicked.connect(get_orientation)
 ui.diff_spot_Listbox.setSelectionMode(QtGui.QListWidget.ExtendedSelection)
 ui.n_entry.setText('1')
 ui.indice_entry.setText('5')
+ui.tilt_axis_angle_entry.setText('0')
 s=1
 gclick=np.zeros((1,2))
 Index.show()
