@@ -10,7 +10,6 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib import pyplot as plt
 import indexUI
-import time
 
 ######################
 #
@@ -194,8 +193,11 @@ def distance_theo():
 def add_spot():
 	s1=ui.ListBox_theo.currentItem().text().split(',')
 	s2=ui.ListBox_d_2.currentItem().text().split(',')
-	s3=ui.tilt_entry.text()
-	s=s3+','+s2[1]+','+s1[1]+','+s1[2]+','+s1[3]
+	s3=ui.tilt_a_entry.text()
+	s4=ui.tilt_b_entry.text()
+	s5=ui.tilt_z_entry.text()
+	
+	s=s3+','+s4+','+s5+','+s2[1]+','+s1[1]+','+s1[2]+','+s1[3]
 	ui.diff_spot_Listbox.addItem(s)
 
 def remove_spot():
@@ -428,31 +430,53 @@ def euler_determine_5(g_perm,g_sample):
 # Determine orientation from the selected spots.
 #
 #########################################
+def tilt_axes():
+	global s_a,s_b,s_z
+	s_a,s_b,s_z=-1,-1,-1
+	if ui.alpha_signBox.isChecked():
+		s_a=1
+	if ui.beta_signBox.isChecked():
+		s_b=1
+	if ui.theta_signBox.isChecked():
+    		s_b=1
+        return s_a,s_b,s_z
+
  
 def get_orientation():
 	global G, Dstar
-	
+	s_a,s_b,s_z=tilt_axes()
 	ui.euler_listbox.clear()
 	s=[str(x.text()) for x in ui.diff_spot_Listbox.selectedItems()]
-	tilt_inclinaison=[]
+	tilt_a=[]
+	tilt_b=[]
+	tilt_z=[]
+	inclination=[]
 	g_hkl=[]
 	
 	for i in range(0,len(s)):
-		l=map(float, s[i].split(','))
-		tilt_inclinaison.append(l[0:2])
-		g_hkl.append(l[2:5])
-	
+			l=map(float, s[i].split(','))
+			tilt_a.append(l[0])
+			tilt_b.append(l[1])
+			tilt_z.append(l[2])
+			inclination.append(l[3])
+			g_hkl.append(l[4:7])
+	inclination=np.array(inclination)
+	tilt_a=np.array(tilt_a)
+	tilt_b=np.array(tilt_b)
+	tilt_z=np.array(tilt_z)
 	g_hkl=np.array(g_hkl)
-	tilt_inclinaison=np.array(tilt_inclinaison)
-	
+	t_ang=np.float(ui.tilt_axis_angle_entry.text())
 	g_perm=[]
 	for i in range(0,np.shape(g_hkl)[0]):
 		g_perm.append(perm_g(g_hkl[i,0],g_hkl[i,1],g_hkl[i,2]))
+	
+	g_sample=np.zeros((np.shape(tilt_a)[0],3))
+	for i in range(0,np.shape(tilt_a)[0]):
+		R=np.dot(Rot(s_z*tilt_z[i],0,0,1),np.dot(Rot(s_b*tilt_b[i],1,0,0),Rot(s_a*tilt_a[i],0,1,0)))
+		ny=(-inclination[i])*np.pi/180
+		t=np.array([-np.sin(ny),np.cos(ny),0])
+		g_sample[i,:]=np.dot(R,np.dot(Rot(t_ang,0,0,1),t))
 		
-	g_sample=np.zeros((np.shape(tilt_inclinaison)[0],3))
-	for i in range(0,np.shape(tilt_inclinaison)[0]):
-		g_sample[i,:]=np.dot(Rot(-tilt_inclinaison[i,0],0,1,0),np.dot(Rot(-tilt_inclinaison[i,1],0,0,1),np.array([0,1,0])))
-
 
 	if g_hkl.shape[0]==3:
 		R=euler_determine_3(g_perm,g_sample)
@@ -467,8 +491,10 @@ def get_orientation():
 		ui.euler_listbox.addItem("Number of spots should be between 3 and 5") 
 	np.set_printoptions(suppress=True)
 	if R.shape[0]>0:
-		ui.euler_listbox.addItem('Phi1,Phi,Phi2   | Mean angular deviation, Orthogonality, Residual')
-		ui.euler_listbox.addItem(str(np.around(R[2],decimals=3))+','+str(np.around(R[3],decimals=3))+','+str(np.around(R[4],decimals=3))+'   | '+str(np.around(R[5],decimals=3))+','+str(np.around(R[0],decimals=5))+','+str(np.around(R[1],decimals=6))) 
+		ui.euler_listbox.addItem('Phi1,Phi,Phi2')
+		ui.euler_listbox.addItem(str(np.around(R[2],decimals=3))+','+str(np.around(R[3],decimals=3))+','+str(np.around(R[4],decimals=3)))
+		ui.euler_listbox.addItem( 'Mean angular deviation, Orthogonality, Residual')
+		ui.euler_listbox.addItem(str(np.around(R[5],decimals=3))+','+str(np.around(R[0],decimals=5))+','+str(np.around(R[1],decimals=6))) 
 			
 
 
@@ -807,6 +833,10 @@ ui.diff_spot_Listbox.setSelectionMode(QtGui.QListWidget.ExtendedSelection)
 ui.n_entry.setText('1')
 ui.indice_entry.setText('5')
 ui.tilt_axis_angle_entry.setText('0')
+ui.tilt_a_entry.setText('0')
+ui.tilt_b_entry.setText('0')
+ui.tilt_z_entry.setText('0')
+
 s=1
 gclick=np.zeros((1,2))
 Index.show()
